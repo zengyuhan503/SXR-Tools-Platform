@@ -35,43 +35,46 @@ const InstalExe = async (item) => {
             defaultPath: `D:\\handleFactory\\${item.name}`,
             directory: true
         })
-        let regText = /^(?:[\u3400-\u4DB5\u4E00-\u9FEA\uFA0E\uFA0F\uFA11\uFA13\uFA14\uFA1F\uFA21\uFA23\uFA24\uFA27-\uFA29]|[\uD840-\uD868\uD86A-\uD86C\uD86F-\uD872\uD874-\uD879][\uDC00-\uDFFF]|\uD869[\uDC00-\uDED6\uDF00-\uDFFF]|\uD86D[\uDC00-\uDF34\uDF40-\uDFFF]|\uD86E[\uDC00-\uDC1D\uDC20-\uDFFF]|\uD873[\uDC00-\uDEA1\uDEB0-\uDFFF]|\uD87A[\uDC00-\uDFE0])+$/
-        const chineseRegex = /[\u4e00-\u9fa5]/;
-        let hasZh = chineseRegex.test(install_dir);
-        if (hasZh || install_dir.indexOf("C:\\") != -1) {
-            Modal.error({
-                title: '应用安装提示',
-                content: '不能选择安装至C盘或安装地址中不能存在中文，请更改路径后重试',
-            });
-            return false
+        if (install_dir) {
+            let regText = /^(?:[\u3400-\u4DB5\u4E00-\u9FEA\uFA0E\uFA0F\uFA11\uFA13\uFA14\uFA1F\uFA21\uFA23\uFA24\uFA27-\uFA29]|[\uD840-\uD868\uD86A-\uD86C\uD86F-\uD872\uD874-\uD879][\uDC00-\uDFFF]|\uD869[\uDC00-\uDED6\uDF00-\uDFFF]|\uD86D[\uDC00-\uDF34\uDF40-\uDFFF]|\uD86E[\uDC00-\uDC1D\uDC20-\uDFFF]|\uD873[\uDC00-\uDEA1\uDEB0-\uDFFF]|\uD87A[\uDC00-\uDFE0])+$/
+            const chineseRegex = /[\u4e00-\u9fa5]/;
+            let hasZh = chineseRegex.test(install_dir);
+            if (hasZh || install_dir.indexOf("C:\\") != -1) {
+                Modal.error({
+                    title: '应用安装提示',
+                    content: '不能选择安装至C盘或安装地址中不能存在中文，请更改路径后重试',
+                });
+                return false
+            }
+            if (install_dir == '' || install_dir == null) return false;
+            item.text = "安装中..."
+            isShowProgress.value = true
+            process_count.value = 15
+            let res = await EmitRunActions("install", item.install_dir, install_dir)
+            if (res.hasOwnProperty("Err")) {
+                message.error(res.Err)
+            } else if (res.hasOwnProperty("Ok")) {
+                setTimeout(() => {
+                    process_count.value = 35
+                }, 1000);
+                setTimeout(() => {
+                    process_count.value = 55
+                }, 2000);
+            }
+            setTimeout(() => {
+                item.path = install_dir
+                actionLoading.value = false
+                process_count.value = 100
+                setTimeout(() => {
+                    isShowProgress.value = false
+                    item.text = "安装应用"
+                    message.success("安装成功")
+                    RunEmitSetLogs("info", `安装${item.name}应用成功，安装目录是${install_dir}`);
+                }, 1000);
+            }, 5000);
         }
-        if (install_dir == '' || install_dir == null) return false;
-        item.text = "安装中..."
-        isShowProgress.value = true
-        process_count.value = 15
-        let res = await EmitRunActions("install", item.install_dir, install_dir)
-        if (res.hasOwnProperty("Err")) {
-            message.error(res.Err)
-        } else if (res.hasOwnProperty("Ok")) {
-            setTimeout(() => {
-                process_count.value = 35
-            }, 1000);
-            setTimeout(() => {
-                process_count.value = 55
-            }, 2000);
-        }
-        setTimeout(() => {
-            item.path = install_dir
-            actionLoading.value = false
-            process_count.value = 100
-            setTimeout(() => {
-                isShowProgress.value = false
-                item.text = "安装应用"
-                message.success("安装成功")
-                RunEmitSetLogs("info", `安装${item.name}应用成功，安装目录是${install_dir}`);
-            }, 1000);
-        }, 5000);
     } catch (error) {
+        console.log(error)
         message.error("安装失败")
         isShowProgress.value = false
         process_count.value = 0
@@ -256,6 +259,7 @@ onMounted(async () => {
             font-size: 18px;
             line-height: 25px;
             padding-right: 15px;
+            font-weight: 600;
             min-height: 50px;
         }
 

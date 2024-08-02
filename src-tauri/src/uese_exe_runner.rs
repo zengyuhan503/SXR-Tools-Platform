@@ -174,7 +174,7 @@ impl InstallApps {
         let document_path = document_dir().unwrap();
         let mut doc_path = document_path.join("sxr_apps");
         let _ = fs::create_dir_all(doc_path.clone());
-        let file = fs::OpenOptions::new()
+        let _file = fs::OpenOptions::new()
             .write(true)
             .create(true)
             .open(doc_path.clone().join("app.json"))

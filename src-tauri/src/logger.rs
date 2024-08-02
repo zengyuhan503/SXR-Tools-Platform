@@ -4,7 +4,7 @@ use simplelog::*;
 use std::path::PathBuf;
 use std::{
     env,
-    fs::{self, OpenOptions},
+    fs::OpenOptions,
 };
 use time::UtcOffset;
 

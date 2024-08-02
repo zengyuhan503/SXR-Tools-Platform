@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 use std::collections::hash_map::DefaultHasher;
 use std::hash::{Hash, Hasher};
 use std::sync::{Arc, Mutex as SyncMutex};
-use std::{clone, env, thread};
+use std::{env, thread};
 use tauri::Manager;
 use tokio::sync::Mutex;
 
@@ -99,8 +99,9 @@ async fn main() {
                                     println!("{}", err);
                                     if err.contains("当前路径不存在，请重新安装") {
                                         let path_json = install_apps.install_json.clone();
-                                       let res= FileContentActions::remove_content_form_file(
-                                            name.clone(), path_json,
+                                        let res = FileContentActions::remove_content_form_file(
+                                            name.clone(),
+                                            path_json,
                                         );
                                         println!("res: {:?}", res);
                                     }
