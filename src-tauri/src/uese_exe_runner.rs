@@ -102,7 +102,6 @@ impl ExeRunner {
                 return Err(format!("Error: {:?}", err));
             }
         }
-
         Ok(run_path)
     }
     pub async fn start(
@@ -218,7 +217,6 @@ impl InstallApps {
         let _ = content_file.read_to_string(&mut contents);
         contents
     }
-
     pub async fn run_install_app(
         &self,
         exe_name: String,

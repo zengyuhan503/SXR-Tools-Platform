@@ -4,10 +4,11 @@ import Toos from './components/tools.vue';
 import { appWindow } from '@tauri-apps/api/window';
 import { EmitRunActions } from '../src/utlis/communication';
 import { message } from 'ant-design-vue';
+import { configDir } from '@tauri-apps/api/path';
 // This starter template is using Vue 3 <script setup> SFCs
 // Check out https://vuejs.org/api/sfc-script-setup.html#script-setup
 type icon = {
-  [key: string]: URL | boolean | string
+  [key: string]: URL | boolean | string | (() => void),
 }
 interface HeadIcon {
   [key: number]: icon
@@ -36,7 +37,7 @@ let head_ioncs = ref({
         message.error("请等安装或者卸载完成后再关闭程序")
         return false
       }
-      
+
       EmitRunActions("exit")
       setTimeout(() => {
         toolsRef.value.GetApps()
@@ -52,6 +53,13 @@ const getIcon = (item: icon): string => {
 const hoverEffect = (item: icon) => {
   item.isHover = !item.isHover;
 }
+
+const executeAction = (item: icon) => {
+  // 根据 item.action 的类型决定执行的动作
+  if (typeof item.action === 'function') {
+    item.action();
+  }
+}
 </script>
 
 <template>
@@ -62,8 +70,8 @@ const hoverEffect = (item: icon) => {
     </div>
     <div class="action-icons">
       <span v-for="(item, index) in head_ioncs" :key="index">
-        <img :src="getIcon(item)" @click="item.action" @mouseover="hoverEffect(item)" @mouseleave="hoverEffect(item)"
-          alt="">
+        <img :src="getIcon(item)" @click="executeAction(item)" @mouseover="hoverEffect(item)"
+          @mouseleave="hoverEffect(item)" alt="">
       </span>
     </div>
   </div>

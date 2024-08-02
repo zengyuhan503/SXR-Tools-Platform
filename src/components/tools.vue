@@ -1,12 +1,29 @@
-<script setup>
+<script setup lang="ts">
 import { ref, onMounted } from 'vue';
 import { EmitRunActions, ListenActiveCloseApp, RunEmitSetLogs } from "../utlis/communication"
 import { Modal, message } from 'ant-design-vue';
-import { app, process } from '@tauri-apps/api';
-import { save, open } from '@tauri-apps/api/dialog';
+import { open } from '@tauri-apps/api/dialog';
 
-let appList = ref([])
+interface AppItem {
+    name: string,
+    version: string,
+    path: string,
+    is_start: boolean,
+    install_dir: string,
+    text: string
+}
+interface APPContents {
+    apps: string[],
+    apps_resources: string,
+    contents: string,
+    install_json: string
+}
+interface EmitRunACtionsRes {
+    Err: string,
+    Ok: string
+}
 
+let appList = ref<AppItem[]>([])
 let actionTip = ref("卸载中...")
 let actionLoading = ref(false);
 let isShowProgress = ref(false);
@@ -14,29 +31,42 @@ let process_count = ref(5)
 let isShowUninstall = ref(false)
 let unInstaling = ref(false);
 let openCount = 0;
+/**
+ * 监听并处理应用的激活关闭事件
+ * 
+ * 此函数通过 ListenActiveCloseApp 方法监听应用的激活关闭事件当事件发生时，
+ * 根据返回的结果 res 在应用列表 appList 中查找对应的应用如果找到了对应的应用，
+ * 将其启动状态 is_start 设置为 false，以标记该应用已被关闭
+ * 
+ * 注意：appList 应该是一个外部定义的响应式数据源，其内部包含了一系列应用对象，
+ * 每个应用对象都有 name 和 is_start 属性，其中 name 表示应用的名称，is_start 表示应用的启动状态
+ */
 const handleListenActiveCloseApp = () => {
     ListenActiveCloseApp((res) => {
-        const app = appList.value.find(app => app.name === res);
+        const app = appList.value.find((app: AppItem) => app.name === res);
         if (app) {
             app.is_start = false;
         }
     })
 }
 
-const handleRunActions = (name) => {
+const handleRunActions = (name: string) => {
     return EmitRunActions(name)
 }
-
-const InstalExe = async (item) => {
+/**
+ * 异步函数：执行安装操作
+ * @param {Object} item - 待安装的应用程序项
+ * @returns {Promise} - 返回一个Promise对象，代表异步操作的结果
+ */
+const InstalExe = async (item: AppItem) => {
     process_count.value = 5
     try {
         let install_dir = await open({
             title: "请选择安装目录",
             defaultPath: `D:\\handleFactory\\${item.name}`,
             directory: true
-        })
+        }) as string
         if (install_dir) {
-            let regText = /^(?:[\u3400-\u4DB5\u4E00-\u9FEA\uFA0E\uFA0F\uFA11\uFA13\uFA14\uFA1F\uFA21\uFA23\uFA24\uFA27-\uFA29]|[\uD840-\uD868\uD86A-\uD86C\uD86F-\uD872\uD874-\uD879][\uDC00-\uDFFF]|\uD869[\uDC00-\uDED6\uDF00-\uDFFF]|\uD86D[\uDC00-\uDF34\uDF40-\uDFFF]|\uD86E[\uDC00-\uDC1D\uDC20-\uDFFF]|\uD873[\uDC00-\uDEA1\uDEB0-\uDFFF]|\uD87A[\uDC00-\uDFE0])+$/
             const chineseRegex = /[\u4e00-\u9fa5]/;
             let hasZh = chineseRegex.test(install_dir);
             if (hasZh || install_dir.indexOf("C:\\") != -1) {
@@ -50,7 +80,7 @@ const InstalExe = async (item) => {
             item.text = "安装中..."
             isShowProgress.value = true
             process_count.value = 15
-            let res = await EmitRunActions("install", item.install_dir, install_dir)
+            let res = await EmitRunActions("install", item.install_dir, install_dir) as EmitRunACtionsRes
             if (res.hasOwnProperty("Err")) {
                 message.error(res.Err)
             } else if (res.hasOwnProperty("Ok")) {
@@ -62,7 +92,7 @@ const InstalExe = async (item) => {
                 }, 2000);
             }
             setTimeout(() => {
-                item.path = install_dir
+                item.path = install_dir as string
                 actionLoading.value = false
                 process_count.value = 100
                 setTimeout(() => {
@@ -74,16 +104,15 @@ const InstalExe = async (item) => {
             }, 5000);
         }
     } catch (error) {
-        console.log(error)
         message.error("安装失败")
         isShowProgress.value = false
         process_count.value = 0
     }
 }
 
-const OpenExe = async (item) => {
+const OpenExe = async (item: AppItem) => {
     try {
-        let res = await EmitRunActions("open_exe", item.path, item.name);
+        let res = await EmitRunActions("open_exe", item.path, item.name) as EmitRunACtionsRes;
         if (res.hasOwnProperty("Err")) {
             message.error(res.Err)
         } else if (res.hasOwnProperty("Ok")) {
@@ -96,28 +125,32 @@ const OpenExe = async (item) => {
         }
     } catch (error) {
         await GetApps()
-        console.log(error)
     }
 }
-const CloseExe = (item) => {
+const CloseExe = (item: AppItem) => {
     EmitRunActions("stop_exe", item.path);
     item.is_start = false
     openCount--
 }
-let uninstallItem = null
+let uninstallItem: AppItem | null = null
 const UninstallOk = async () => {
     try {
         unInstaling.value = true
         let item = uninstallItem;
-        let res = await EmitRunActions("uninstall", item.path, item.name);
-        if (res.hasOwnProperty("Err")) {
-            message.error(res.Err)
-        } else if (res.hasOwnProperty("Ok")) {
-            message.success("卸载成功")
-            RunEmitSetLogs("info", `卸载${item.name}应用成功`);
-            uninstallItem.path = ""
-            uninstallItem.text = "安装应用"
+        if (item) {
+            let res = await EmitRunActions("uninstall", item.path, item.name) as EmitRunACtionsRes;
+            if (res.hasOwnProperty("Err")) {
+                message.error(res.Err)
+            } else if (res.hasOwnProperty("Ok")) {
+                message.success("卸载成功")
+                RunEmitSetLogs("info", `卸载${item.name}应用成功`);
+                if (uninstallItem) {
+                    uninstallItem.path = ""
+                    uninstallItem.text = "安装应用"
+                }
+            }
         }
+
     } catch (error) {
         await GetApps()
     }
@@ -127,7 +160,13 @@ const UninstallOk = async () => {
         isShowUninstall.value = false
     }, 2000);
 }
-const UnInstallApp = async (item) => {
+/**
+ * 异步卸载应用
+ * @param {Object} item - 待处理的应用项
+ *  - is_start (boolean): 应用是否正在运行的标志
+ *  - name (string): 应用的名称
+ */
+const UnInstallApp = async (item: AppItem) => {
     if (item.is_start) {
         Modal.warning({
             title: "提示",
@@ -138,18 +177,27 @@ const UnInstallApp = async (item) => {
         isShowUninstall.value = true
     }
 }
+/**
+ * 异步获取应用程序列表
+ * 此函数通过调用handleRunActions函数初始化应用程序列表，然后更新前端应用列表（appList）
+ * 它首先尝试从返回的apps对象中获取已安装的应用程序列表，然后将其与当前应用列表合并
+ * 如果在合并过程中发现应用程序已存在，则不会重复添加
+ * 如果在初始化过程中发生错误，将捕获异常并打印到控制台
+ */
 const GetApps = async () => {
     try {
-        let apps = await handleRunActions("init");
+        let apps: APPContents = await handleRunActions("init") as unknown as APPContents;
+
         if (apps) {
             let contents = apps.contents
             let install_apps = contents !== '' ? JSON.parse(contents) : [];
             appList.value = [...install_apps];
             apps.apps.forEach(app => {
                 let data = app.split("_");
-                let exists = install_apps.some(in_app => in_app.name === data[0]);
+
+                let exists = install_apps.some((in_app: AppItem) => in_app.name === data[0]);
                 if (!exists) {
-                    let item = {
+                    let item: AppItem = {
                         "name": data[0],
                         "version": data[1],
                         "path": "",
@@ -161,6 +209,7 @@ const GetApps = async () => {
                 }
 
             });
+
         }
     } catch (error) {
         console.error("Error initializing apps:", error);

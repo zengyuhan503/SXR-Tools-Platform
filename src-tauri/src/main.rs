@@ -38,10 +38,24 @@ struct Actions {
     orther: Option<String>,
 }
 
+/// 根据给定路径创建应用工具的哈希值
+/// 
+/// 该函数主要用于从文件路径中提取出最末尾的文件名或文件夹名，并以此为基础生成一个唯一的哈希值
+/// 这在某些情况下可用于快速比较或查找特定的应用工具，而无需进行完整的路径比较
+/// 
+/// # 参数
+/// - `path`: &str - 应用工具的文件或文件夹路径
+/// 
+/// # 返回值
+/// - `u64` - 生成的哈希值
 fn create_app_tool_hash(path: &str) -> u64 {
+    // 提取路径中的最后部分，通常是文件名或文件夹名
     let tag = path.split("\\").last().unwrap();
+    // 创建一个新的默认哈希器
     let mut hasher = DefaultHasher::new();
+    // 将tag哈希到哈希器中
     tag.hash(&mut hasher);
+    // 完成哈希计算并返回结果
     hasher.finish()
 }
 
@@ -122,7 +136,7 @@ async fn main() {
                             "uninstall" => {
                                 let path = params.item.unwrap();
                                 let name = params.orther.unwrap();
-
+                                println!("uninstall: {}", path);
                                 let res = install_apps.run_un_install(&path, name).await;
                                 let _ = emit_win.emit("run_actions_res", res);
                             }
