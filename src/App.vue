@@ -4,9 +4,6 @@ import Toos from './components/tools.vue';
 import { appWindow } from '@tauri-apps/api/window';
 import { EmitRunActions } from '../src/utlis/communication';
 import { message } from 'ant-design-vue';
-import { configDir } from '@tauri-apps/api/path';
-// This starter template is using Vue 3 <script setup> SFCs
-// Check out https://vuejs.org/api/sfc-script-setup.html#script-setup
 type icon = {
   [key: string]: URL | boolean | string | (() => void),
 }
@@ -19,13 +16,13 @@ let head_ioncs = ref({
     "normal": new URL("./assets/image/header-icon (1).png", import.meta.url) as unknown as string,
     "hover": new URL("./assets/image/header-icon (4).png", import.meta.url) as unknown as string,
     isHover: false,
-    action: () => { appWindow.minimize() }
+    action: () => appWindow.minimize()
   },
   2: {
     "normal": new URL("./assets/image/header-icon (2).png", import.meta.url) as unknown as string,
     "hover": new URL("./assets/image/header-icon (5).png", import.meta.url) as unknown as string,
     isHover: false,
-    action: () => { appWindow.toggleMaximize() }
+    action: () => appWindow.toggleMaximize()
   },
   3: {
     "normal": new URL("./assets/image/header-icon (3).png", import.meta.url),
@@ -33,19 +30,17 @@ let head_ioncs = ref({
     isHover: false,
     action: () => {
       // EmitRunActions("exit")
-      if (toolsRef.value.isShowUninstall || toolsRef.value.isShowProgress) {
+      if (toolsRef.value?.isShowUninstall || toolsRef.value?.isShowProgress) {
         message.error("请等安装或者卸载完成后再关闭程序")
         return false
       }
-
       EmitRunActions("exit")
       setTimeout(() => {
-        toolsRef.value.GetApps()
+        toolsRef.value?.GetApps()
       }, 1000)
     }
   },
 } as unknown as HeadIcon)
-
 const getIcon = (item: icon): string => {
   let url = (item.isHover ? item.hover : item.normal) as URL;
   return url.href;
@@ -53,7 +48,6 @@ const getIcon = (item: icon): string => {
 const hoverEffect = (item: icon) => {
   item.isHover = !item.isHover;
 }
-
 const executeAction = (item: icon) => {
   // 根据 item.action 的类型决定执行的动作
   if (typeof item.action === 'function') {
@@ -79,7 +73,6 @@ const executeAction = (item: icon) => {
     <p class="title">请选择工具</p>
     <Toos ref="toolsRef" />
   </div>
-
 </template>
 
 <style>

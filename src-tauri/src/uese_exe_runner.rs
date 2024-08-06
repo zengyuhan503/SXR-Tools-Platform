@@ -1,7 +1,11 @@
+use crate::NAME_MAP;
 use dirs::document_dir;
+
 use serde::{Deserialize, Serialize};
+use std::collections::hash_map::DefaultHasher;
 use std::fs;
 use std::fs::File;
+use std::hash::{Hash, Hasher};
 use std::io::Read;
 use std::path::PathBuf;
 use std::process::Command as SysCommand;
@@ -20,6 +24,7 @@ pub struct AppInfo {
     is_start: bool,
     install_dir: String,
 }
+
 pub struct FileContentActions {}
 impl FileContentActions {
     pub async fn write_to_file(info: AppInfo, json_path: PathBuf) -> Result<(), String> {
@@ -37,7 +42,6 @@ impl FileContentActions {
                 return s.map_err(|err| format!("{}", err));
             }
             Err(err) => {
-                println!("{}", err);
                 return Err(format!("err:{}", err));
             }
         }
@@ -54,7 +58,6 @@ impl FileContentActions {
                 return s.map_err(|err| format!("{}", err));
             }
             Err(err) => {
-                println!("{}", err);
                 return Err(format!("err:{}", err));
             }
         }
@@ -110,7 +113,9 @@ impl ExeRunner {
         arc_win: Arc<SyncMutex<Window>>,
         name: String,
     ) -> Result<(), String> {
+        println!("exe_path:{:?}", exe_path);
         let run_exe = ExeRunner::get_run_path(exe_path, true)?;
+
         if run_exe.is_empty() {
             let err = format!("Error: {}", "当前路径不存在，请重新安装");
             return Err(err);
@@ -222,24 +227,32 @@ impl InstallApps {
         exe_name: String,
         path: PathBuf,
         install_dir: String,
-    ) -> Result<(), String> {
-        let dir_path = format!(r"{}", install_dir.clone());
+    ) -> Result<String, String> {
+        let file_name = get_app_file_name(exe_name.clone());
+        let dir_path = format!(r"{}\{}", install_dir.clone(), file_name.clone());
         let mut dir = format!("/D={}", dir_path);
         dir = dir.replace("\"", "");
+        let _is_check = check_unstall_file_exists(install_dir.clone())?;
+
+        println!("dir_path:{},path:{}", dir_path, install_dir);
+
         let exes: Vec<String> = exe_name.split("_").map(|s| s.to_string()).collect();
-        println!("exes:{:?}", exes);
         let output = SysCommand::new(path).arg("/S").arg(&dir).output();
         match output {
             Ok(output) if output.status.success() => {
                 let info = AppInfo {
                     name: exes[0].clone(),
                     version: exes[1].clone(),
-                    path: install_dir.clone(),
+                    path: dir_path.clone(),
                     is_start: false,
                     install_dir: exe_name.clone(),
                 };
                 let res = FileContentActions::write_to_file(info, self.install_json.clone()).await;
-                return res;
+                if res.is_ok() {
+                    return Ok(dir_path.clone());
+                } else {
+                    return Err(res.unwrap_err());
+                }
             }
             Ok(output) => Err(String::from_utf8_lossy(&output.stderr).into_owned()),
             Err(e) => Err(e.to_string()),
@@ -247,9 +260,8 @@ impl InstallApps {
     }
     pub async fn run_un_install(&self, path: &str, name: String) -> Result<(), String> {
         let un_path = ExeRunner::get_run_path(path, false)?;
-        println!("un_path:{:?}", un_path);
         if un_path.is_empty() {
-            let _=FileContentActions::remove_content_form_file(name, self.install_json.clone());
+            let _ = FileContentActions::remove_content_form_file(name, self.install_json.clone());
             return Err(String::from(
                 "当前应用不存在，已删除记录，如需使用请重新安装",
             ));
@@ -265,5 +277,29 @@ impl InstallApps {
             Ok(output) => Err(String::from_utf8_lossy(&output.stderr).into_owned()),
             Err(e) => Err(e.to_string()),
         }
+    }
+}
+
+fn get_app_file_name(exe_name: String) -> String {
+    let parts: Vec<&str> = exe_name.split('_').collect();
+    let name = parts[0];
+    if NAME_MAP.contains_key(name) {
+        let name = NAME_MAP.get(name).unwrap().to_string();
+        return name;
+    } else {
+        let mut hasher = DefaultHasher::new();
+        let inputs = name;
+        inputs.hash(&mut hasher);
+        let hash_value = hasher.finish();
+        return format!("SXR_VQ920_Apps{}", hash_value);
+    }
+}
+fn check_unstall_file_exists(path: String) -> Result<(), String> {
+    let path_buf = PathBuf::from(path);
+    let check_path = path_buf.join("uninstall.exe");
+    if check_path.exists() {
+        return Err("该目录下已经安装过应用，请安装到其他地址".to_string());
+    } else {
+        return Ok(());
     }
 }

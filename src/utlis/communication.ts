@@ -16,7 +16,7 @@ let unlisten: UnlistenFn | null = null
  * 异步函数EmitRunActions用于触发运行动作，并处理响应或错误
  * @param name 动作的名称，用于标识动作类型
  * @param item 动作的子项名称，可选，用于进一步细化动作
- * @param orther 额外信息，可选，用于提供附加的上下文
+ * @param orther 额外信息，可选
  * @returns 返回一个Promise，解析为动作的响应数据或拒绝为错误信息
  */
 export const EmitRunActions = (name: string, item?: string, orther?: string) => {

@@ -3,6 +3,10 @@ import { ref, onMounted } from 'vue';
 import { EmitRunActions, ListenActiveCloseApp, RunEmitSetLogs } from "../utlis/communication"
 import { Modal, message } from 'ant-design-vue';
 import { open } from '@tauri-apps/api/dialog';
+import { appWindow } from "@tauri-apps/api/window"
+import { isPermissionGranted, requestPermission, sendNotification } from '@tauri-apps/api/notification';
+
+
 
 interface AppItem {
     name: string,
@@ -10,7 +14,8 @@ interface AppItem {
     path: string,
     is_start: boolean,
     install_dir: string,
-    text: string
+    text: string,
+    loading: boolean
 }
 interface APPContents {
     apps: string[],
@@ -31,6 +36,23 @@ let process_count = ref(5)
 let isShowUninstall = ref(false)
 let unInstaling = ref(false);
 let openCount = 0;
+
+
+
+let permissionGranted: boolean | null = null
+async function getGranted() {
+    isPermissionGranted().then(async res => {
+        console.log(res)
+        permissionGranted = res;
+        console.log(permissionGranted)
+        if (!permissionGranted) {
+            const permission = await requestPermission();
+            permissionGranted = permission === 'granted';
+        }
+    });
+
+}
+getGranted()
 /**
  * 监听并处理应用的激活关闭事件
  * 
@@ -58,7 +80,7 @@ const handleRunActions = (name: string) => {
  * @param {Object} item - 待安装的应用程序项
  * @returns {Promise} - 返回一个Promise对象，代表异步操作的结果
  */
-const InstalExe = async (item: AppItem) => {
+const InstalExe = async (item: AppItem): Promise<any> => {
     process_count.value = 5
     try {
         let install_dir = await open({
@@ -81,6 +103,7 @@ const InstalExe = async (item: AppItem) => {
             isShowProgress.value = true
             process_count.value = 15
             let res = await EmitRunActions("install", item.install_dir, install_dir) as EmitRunACtionsRes
+
             if (res.hasOwnProperty("Err")) {
                 message.error(res.Err)
             } else if (res.hasOwnProperty("Ok")) {
@@ -92,7 +115,7 @@ const InstalExe = async (item: AppItem) => {
                 }, 2000);
             }
             setTimeout(() => {
-                item.path = install_dir as string
+                item.path = res.Ok as string
                 actionLoading.value = false
                 process_count.value = 100
                 setTimeout(() => {
@@ -112,6 +135,7 @@ const InstalExe = async (item: AppItem) => {
 
 const OpenExe = async (item: AppItem) => {
     try {
+        item.loading = true;
         let res = await EmitRunActions("open_exe", item.path, item.name) as EmitRunACtionsRes;
         if (res.hasOwnProperty("Err")) {
             message.error(res.Err)
@@ -120,9 +144,16 @@ const OpenExe = async (item: AppItem) => {
             item.is_start = true
             openCount++
             if (openCount > 3) {
-                message.warning('你打开的程序已经打开超过3个，可能会影响到测试性能，请注意。')
+                if (permissionGranted) {
+                    sendNotification({
+                        title: 'SXR平台工厂工具提示',
+                        body: '你打开的程序已经打开超过3个，可能会影响到测试性能，请注意!',
+                    });
+                }
             }
+            appWindow.minimize()
         }
+        item.loading = false
     } catch (error) {
         await GetApps()
     }
@@ -131,6 +162,7 @@ const CloseExe = (item: AppItem) => {
     EmitRunActions("stop_exe", item.path);
     item.is_start = false
     openCount--
+    console.log(openCount)
 }
 let uninstallItem: AppItem | null = null
 const UninstallOk = async () => {
@@ -187,14 +219,15 @@ const UnInstallApp = async (item: AppItem) => {
 const GetApps = async () => {
     try {
         let apps: APPContents = await handleRunActions("init") as unknown as APPContents;
-
         if (apps) {
             let contents = apps.contents
             let install_apps = contents !== '' ? JSON.parse(contents) : [];
+            install_apps.forEach((item: AppItem) => {
+                item.loading = false
+            })
             appList.value = [...install_apps];
             apps.apps.forEach(app => {
                 let data = app.split("_");
-
                 let exists = install_apps.some((in_app: AppItem) => in_app.name === data[0]);
                 if (!exists) {
                     let item: AppItem = {
@@ -203,13 +236,12 @@ const GetApps = async () => {
                         "path": "",
                         "is_start": false,
                         "install_dir": app,
-                        "text": "安装应用"
+                        "text": "安装应用",
+                        loading: false
                     }
                     appList.value.push(item)
                 }
-
             });
-
         }
     } catch (error) {
         console.error("Error initializing apps:", error);
@@ -233,8 +265,8 @@ onMounted(async () => {
                             <div class="title">
                                 <p>{{ item.name }}</p>
                                 <div v-if="item.path != ''">
-                                    <a-button size="small" @click="OpenExe(item)" v-if="!item.is_start"
-                                        type="primary">打开工具</a-button>
+                                    <a-button size="small" @click="OpenExe(item)" :loading="item.loading"
+                                        v-if="!item.is_start" type="primary">打开工具</a-button>
                                     <a-button size="small" @click="CloseExe(item)" v-else danger>关闭工具</a-button>
                                 </div>
                                 <div v-else>

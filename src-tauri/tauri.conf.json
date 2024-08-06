@@ -23,6 +23,9 @@
       },
       "window": {
         "all": true
+      },
+      "notification": {
+        "all": true
       }
     },
     "security": {
@@ -32,7 +35,10 @@
       "active": true,
       "targets": "all",
       "identifier": "sxr-tool-platform",
-      "resources": ["./resources","./log"],
+      "resources": [
+        "./resources",
+        "./log"
+      ],
       "icon": [
         "icons/32x32.png",
         "icons/128x128.png",
@@ -40,10 +46,9 @@
         "icons/icon.icns",
         "icons/icon.ico"
       ],
-      
       "windows": {
-        "wix":{
-          "language": "zh-CN" 
+        "wix": {
+          "language": "zh-CN"
         },
         "nsis": {
           "languages": [
@@ -54,8 +59,8 @@
     },
     "windows": [
       {
-        "label":"SXRTools",
-        "title": "SXR平台测试工具",
+        "label": "SXRTools",
+        "title": "SXR Tool Platform",
         "width": 1000,
         "height": 700,
         "fullscreen": false,

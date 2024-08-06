@@ -18,7 +18,6 @@ pub fn init_logging() {
     let log_dir = exe_path.parent().unwrap().join("log");
     // 根据当前日期生成日志文件名称
     let date = Local::now().format("%Y-%m-%d").to_string();
-    println!("date:{}", date);
     let log_file_path = log_dir.join(format!("{}.log", date));
     let _log_file = OpenOptions::new()
         .write(true)
@@ -43,7 +42,7 @@ pub fn init_logging() {
         )
         .expect("错误"),
         Err(err) => {
-            println!("error {:?}", err);
+            println!("日志文件错误 {:?}", err);
         }
     }
 }

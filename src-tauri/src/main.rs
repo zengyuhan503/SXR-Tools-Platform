@@ -3,6 +3,7 @@
 use lazy_static::lazy_static;
 use serde::{Deserialize, Serialize};
 use std::collections::hash_map::DefaultHasher;
+use std::collections::HashMap;
 use std::hash::{Hash, Hasher};
 use std::sync::{Arc, Mutex as SyncMutex};
 use std::{env, thread};
@@ -17,6 +18,38 @@ use uese_exe_runner::{ExeRunner, FileContentActions, InstallApps};
 
 lazy_static! {
     static ref RUN_APP: Arc<Mutex<Vec<ExeRunner>>> = Arc::new(Mutex::new(Vec::new()));
+    pub static ref NAME_MAP: HashMap<&'static str, String> = {
+        let mut m = HashMap::new();
+        m.insert(
+            "SXR-VQ920-WiFi吞吐测试工具",
+            "SXR_VQ920_wiFiTest".to_string(),
+        );
+        m.insert(
+            "SXR-VQ920-半成品测试工具",
+            "SXR_VQ920_componentTest".to_string(),
+        );
+        m.insert(
+            "SXR-VQ920-成品测试工厂工具",
+            "SXR_VQ920_finalTesting".to_string(),
+        );
+        m.insert(
+            "SXR-VQ920-恢复出厂设置工具",
+            "SXR_VQ920_resetTest".to_string(),
+        );
+        m.insert(
+            "SXR-VQ920-机械臂标定工具",
+            "SXR_VQ920_robotTest".to_string(),
+        );
+        m.insert("SXR-VQ920-老化测试工具", "SXR_VQ920_agingTest".to_string());
+        m.insert(
+            "SXR-VQ920-手柄绑定测试工厂工具",
+            "SXR_VQ920_handleTest".to_string(),
+        );
+        m.insert("SXR-VQ920-写号工厂工具", "SXR_VQ920_writeTest".to_string());
+        m.insert("SXR-手柄测试工具", "SXR_VQ920_pairingCase".to_string());
+        m.insert("SXR-手柄灯环测试工具", "SXR_VQ920_imuCal".to_string());
+        m
+    };
 }
 #[derive(Debug, Clone, Serialize, Deserialize)]
 struct InstallApp {
@@ -39,13 +72,13 @@ struct Actions {
 }
 
 /// 根据给定路径创建应用工具的哈希值
-/// 
+///
 /// 该函数主要用于从文件路径中提取出最末尾的文件名或文件夹名，并以此为基础生成一个唯一的哈希值
 /// 这在某些情况下可用于快速比较或查找特定的应用工具，而无需进行完整的路径比较
-/// 
+///
 /// # 参数
 /// - `path`: &str - 应用工具的文件或文件夹路径
-/// 
+///
 /// # 返回值
 /// - `u64` - 生成的哈希值
 fn create_app_tool_hash(path: &str) -> u64 {
@@ -110,17 +143,14 @@ async fn main() {
                                     runners.push(runer);
                                 } else {
                                     let err = res.clone().err().unwrap();
-                                    println!("{}", err);
                                     if err.contains("当前路径不存在，请重新安装") {
                                         let path_json = install_apps.install_json.clone();
-                                        let res = FileContentActions::remove_content_form_file(
+                                        let _res = FileContentActions::remove_content_form_file(
                                             name.clone(),
                                             path_json,
                                         );
-                                        println!("res: {:?}", res);
                                     }
                                 }
-
                                 let _ = emit_win.emit("run_actions_res", res);
                             }
                             "stop_exe" => {
@@ -136,7 +166,6 @@ async fn main() {
                             "uninstall" => {
                                 let path = params.item.unwrap();
                                 let name = params.orther.unwrap();
-                                println!("uninstall: {}", path);
                                 let res = install_apps.run_un_install(&path, name).await;
                                 let _ = emit_win.emit("run_actions_res", res);
                             }
